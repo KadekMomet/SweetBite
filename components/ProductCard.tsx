@@ -27,6 +27,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     Toast.show({
       type: 'error',
       text1: 'Stok produk habis!',
+      position: 'top', 
+      visibilityTime: 3000,
     });
     return;
     }
@@ -35,7 +37,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     Toast.show({
         type: 'success',
         text1: `${product.name} ditambahkan ke keranjang!`,
-        position: 'bottom',
+        position: 'top',
+        visibilityTime: 2000,
     });
 
     
