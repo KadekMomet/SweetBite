@@ -15,6 +15,7 @@ interface StoreState {
   clearCart: () => void;
   createOrder: () => void;
   toggleDarkMode: () => void;
+  updateOrder: (id: string, updates: Partial<Order>) => void;
 }
 
 export const useStore = create<StoreState>((set, get) => ({
@@ -114,5 +115,11 @@ export const useStore = create<StoreState>((set, get) => ({
     };
   }),
 
+  updateOrder: (id: string, updates: Partial<Order>) => set((state) => ({
+    orders: state.orders.map(order => 
+      order.id === id ? { ...order, ...updates } : order
+    )
+  })),
+  
   toggleDarkMode: () => set((state) => ({ isDarkMode: !state.isDarkMode }))
 }));

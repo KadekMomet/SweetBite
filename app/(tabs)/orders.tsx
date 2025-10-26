@@ -1,17 +1,19 @@
+import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import {
-  View,
-  Text,
-  FlatList,
-  TouchableOpacity,
-  StyleSheet,
+    Alert,
+    FlatList,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useStore } from '../../store/useStore';
+import Toast from 'react-native-toast-message';
 import { Colors } from '../../constants/Colors';
+import { useStore } from '../../store/useStore';
 
 export default function OrdersScreen() {
-  const { orders, isDarkMode } = useStore();
+  const { orders, isDarkMode, updateOrder } = useStore();
   const colors = Colors[isDarkMode ? 'dark' : 'light'];
 
   const getStatusColor = (status: string) => {
@@ -28,6 +30,52 @@ export default function OrdersScreen() {
       case 'cancelled': return 'close-circle';
       default: return 'time';
     }
+  };
+
+  const handleCancelOrder = (orderId: string) => {
+    Alert.alert(
+      'Batalkan Pesanan',
+      'Yakin ingin membatalkan pesanan ini?',
+      [
+        { text: 'Tidak', style: 'cancel' },
+        { 
+          text: 'Ya, Batalkan', 
+          style: 'destructive',
+          onPress: () => {
+            // Update status pesanan menjadi cancelled
+            // Anda perlu menambahkan fungsi updateOrder di store
+            updateOrder(orderId, { status: 'cancelled' });
+            
+            Toast.show({
+              type: 'success',
+              text1: 'Pesanan berhasil dibatalkan',
+            });
+          }
+        },
+      ]
+    );
+  };
+
+   const handleCompleteOrder = (orderId: string) => {
+    Alert.alert(
+      'Selesaikan Pesanan',
+      'Tandai pesanan sebagai selesai?',
+      [
+        { text: 'Nanti', style: 'cancel' },
+        { 
+          text: 'Ya, Selesai', 
+          onPress: () => {
+            // Update status pesanan menjadi completed
+            updateOrder(orderId, { status: 'completed' });
+            
+            Toast.show({
+              type: 'success',
+              text1: 'Pesanan ditandai sebagai selesai! 🎉',
+            });
+          }
+        },
+      ]
+    );
   };
 
   const formatDate = (date: Date) => {
@@ -133,6 +181,7 @@ export default function OrdersScreen() {
               <View style={styles.orderActions}>
                 <TouchableOpacity 
                   style={[styles.actionButton, { backgroundColor: colors.error + '20' }]}
+                  onPress={() => handleCancelOrder(item.id)}
                 >
                   <Ionicons name="close-circle" size={16} color={colors.error} />
                   <Text style={[styles.actionText, { color: colors.error }]}>
@@ -141,6 +190,7 @@ export default function OrdersScreen() {
                 </TouchableOpacity>
                 <TouchableOpacity 
                   style={[styles.actionButton, { backgroundColor: colors.success + '20' }]}
+                  onPress={() => handleCompleteOrder(item.id)}
                 >
                   <Ionicons name="checkmark-circle" size={16} color={colors.success} />
                   <Text style={[styles.actionText, { color: colors.success }]}>
