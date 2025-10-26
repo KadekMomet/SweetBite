@@ -23,12 +23,22 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const colors = Colors[isDarkMode ? 'dark' : 'light'];
 
   const handleAddToCart = () => {
+    if (product.stock === 0) {
+    Toast.show({
+      type: 'error',
+      text1: 'Stok produk habis!',
+    });
+    return;
+    }
+
     addToCart(product);
     Toast.show({
-      type: 'success',
-      text1: `${product.name} ditambahkan ke keranjang!`,
-      position: 'bottom',
+        type: 'success',
+        text1: `${product.name} ditambahkan ke keranjang!`,
+        position: 'bottom',
     });
+
+    
   };
 
   return (

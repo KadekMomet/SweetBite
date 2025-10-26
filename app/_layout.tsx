@@ -37,6 +37,13 @@ export default function RootLayout() {
           name="product-detail" 
           options={{ title: 'Detail Produk' }} 
         />
+        <Stack.Screen 
+          name="edit-product" 
+          options={{ 
+            title: 'Edit Produk',
+            presentation: 'modal'
+          }} 
+        />
       </Stack>
       <CustomToast />
     </>

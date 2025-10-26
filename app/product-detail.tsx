@@ -112,6 +112,15 @@ export default function ProductDetailScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
+            style={[styles.editButton, { borderColor: colors.secondary }]}
+            onPress={() => router.push(`/edit-product?id=${product.id}`)}
+          >
+            <Text style={[styles.editButtonText, { color: colors.secondary }]}>
+              ✏️ Edit Produk
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
             style={[styles.deleteButton, { borderColor: colors.error }]}
             onPress={handleDelete}
           >
@@ -203,5 +212,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: 'center',
     marginTop: 40,
+  },
+  editButton: {
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    borderWidth: 1,
+  },
+  editButtonText: {
+    fontSize: 16,
+    fontWeight: '500',
   },
 });

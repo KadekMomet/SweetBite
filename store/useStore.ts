@@ -16,6 +16,8 @@ interface StoreState {
   createOrder: () => void;
   toggleDarkMode: () => void;
   updateOrder: (id: string, updates: Partial<Order>) => void;
+  editProduct: (id: string, product: Partial<Product>) => void;
+  updateStockOnOrder: (cartItems: CartItem[]) => void;
 }
 
 export const useStore = create<StoreState>((set, get) => ({
@@ -108,6 +110,8 @@ export const useStore = create<StoreState>((set, get) => ({
       status: 'pending',
       createdAt: new Date()
     };
+
+    state.updateStockOnOrder(state.cart);
     
     return {
       orders: [...state.orders, newOrder],
@@ -120,6 +124,25 @@ export const useStore = create<StoreState>((set, get) => ({
       order.id === id ? { ...order, ...updates } : order
     )
   })),
-  
+
+  editProduct: (id: string, product: Partial<Product>) => set((state) => ({
+    products: state.products.map(p => 
+      p.id === id ? { ...p, ...product } : p
+    )
+  })),
+
+   updateStockOnOrder: (cartItems: CartItem[]) => set((state) => ({
+    products: state.products.map(product => {
+      const cartItem = cartItems.find(item => item.product.id === product.id);
+      if (cartItem) {
+        return {
+          ...product,
+          stock: Math.max(0, product.stock - cartItem.quantity)
+        };
+      }
+      return product;
+    })
+  })),
+
   toggleDarkMode: () => set((state) => ({ isDarkMode: !state.isDarkMode }))
 }));
