@@ -14,6 +14,8 @@
 
 **Tahun Akademik:** 2025
 
+**Link Video:** https://www.loom.com/share/1d512ce1dacb445197817d253cd1240b
+
 ---
 
 ## 🎯 Penjelasan Sistem
