@@ -1,10 +1,10 @@
 {
   "expo": {
-    "name": "SweetBite2",
+    "name": "SweetBite",
     "slug": "SweetBite2",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/Logo-SweetBite.png",
     "scheme": "sweetbite2",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -19,7 +19,8 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.momet.SweetBite2"
     },
     "web": {
       "output": "static",
@@ -43,6 +44,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "07f6c84c-9f96-45cb-906f-58ee4d8d8922"
+      }
     }
   }
 }
