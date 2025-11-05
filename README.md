@@ -14,6 +14,8 @@
 
 **Tahun Akademik:** 2025
 
+**Link Video:** https://www.loom.com/share/1d512ce1dacb445197817d253cd1240b
+
 ---
 
 ## 🎯 Penjelasan Sistem
@@ -142,5 +144,6 @@ SweetBite/
 
 ### **Dark Mode**
 
-![WhatsApp Image 2025-10-28 at 09 26 00_48a0055b](https://github.com/user-attachments/assets/3fe26083-38ea-4632-a296-87682acba845)
+![WhatsApp Image 2025-10-28 at 16 04 05_fb5772c7](https://github.com/user-attachments/assets/6c2edf07-b0d3-400a-9977-b46a0339af47)
+
 
