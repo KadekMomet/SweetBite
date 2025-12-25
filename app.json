@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Sweet Bite",
-    "slug": "SweetBite",
+    "slug": "SweetBite2",
     "version": "2.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -65,6 +65,7 @@
       "eas": {
         "projectId": "07f6c84c-9f96-45cb-906f-58ee4d8d8922"
       }
-    }
+    },
+    "owner": "momet"
   }
 }
