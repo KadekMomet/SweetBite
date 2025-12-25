@@ -1,36 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
-import {
-    Alert,
-    FlatList,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
-} from 'react-native';
+import { Alert, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Toast from 'react-native-toast-message';
+import { PageHeader, StatusBadge } from '../../components';
 import { Colors } from '../../constants/Colors';
+import { commonStyles, radius, shadows, spacing } from '../../constants/Styles';
 import { useStore } from '../../store/useStore';
 
 export default function OrdersScreen() {
-  const { orders, isDarkMode, updateOrder } = useStore();
+  const { orders, isDarkMode, updateOrder, deleteOrder, clearOrderHistory } = useStore();
   const colors = Colors[isDarkMode ? 'dark' : 'light'];
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'completed': return '#4CAF50';
-      case 'cancelled': return '#F44336';
-      default: return '#FFA000';
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'completed': return 'checkmark-circle';
-      case 'cancelled': return 'close-circle';
-      default: return 'time';
-    }
-  };
 
   const handleCancelOrder = (orderId: string) => {
     Alert.alert(
@@ -38,40 +17,75 @@ export default function OrdersScreen() {
       'Yakin ingin membatalkan pesanan ini?',
       [
         { text: 'Tidak', style: 'cancel' },
-        { 
-          text: 'Ya, Batalkan', 
+        {
+          text: 'Ya, Batalkan',
           style: 'destructive',
           onPress: () => {
-            // Update status pesanan menjadi cancelled
-            // Anda perlu menambahkan fungsi updateOrder di store
             updateOrder(orderId, { status: 'cancelled' });
-            
-            Toast.show({
-              type: 'success',
-              text1: 'Pesanan berhasil dibatalkan',
-            });
+            Toast.show({ type: 'success', text1: 'Pesanan berhasil dibatalkan' });
           }
         },
       ]
     );
   };
 
-   const handleCompleteOrder = (orderId: string) => {
+  const handleCompleteOrder = (orderId: string) => {
     Alert.alert(
       'Selesaikan Pesanan',
       'Tandai pesanan sebagai selesai?',
       [
         { text: 'Nanti', style: 'cancel' },
-        { 
-          text: 'Ya, Selesai', 
+        {
+          text: 'Ya, Selesai',
           onPress: () => {
-            // Update status pesanan menjadi completed
             updateOrder(orderId, { status: 'completed' });
-            
-            Toast.show({
-              type: 'success',
-              text1: 'Pesanan ditandai sebagai selesai! 🎉',
-            });
+            Toast.show({ type: 'success', text1: 'Pesanan ditandai sebagai selesai! 🎉' });
+          }
+        },
+      ]
+    );
+  };
+
+  const handleDeleteOrder = (orderId: string) => {
+    Alert.alert(
+      'Hapus Pesanan',
+      'Yakin ingin menghapus pesanan ini dari riwayat?',
+      [
+        { text: 'Batal', style: 'cancel' },
+        {
+          text: 'Hapus',
+          style: 'destructive',
+          onPress: () => {
+            deleteOrder(orderId);
+            Toast.show({ type: 'success', text1: 'Pesanan berhasil dihapus dari riwayat' });
+          }
+        },
+      ]
+    );
+  };
+
+  const handleClearHistory = () => {
+    const completedOrCancelledOrders = orders.filter(o => o.status !== 'pending');
+    if (completedOrCancelledOrders.length === 0) {
+      Toast.show({
+        type: 'info',
+        text1: 'Tidak ada riwayat yang bisa dihapus',
+        text2: 'Hanya pesanan selesai/dibatalkan yang bisa dihapus',
+      });
+      return;
+    }
+
+    Alert.alert(
+      'Bersihkan Riwayat',
+      `Hapus ${completedOrCancelledOrders.length} pesanan yang sudah selesai/dibatalkan?`,
+      [
+        { text: 'Batal', style: 'cancel' },
+        {
+          text: 'Hapus Semua',
+          style: 'destructive',
+          onPress: () => {
+            clearOrderHistory();
+            Toast.show({ type: 'success', text1: 'Riwayat pesanan berhasil dibersihkan' });
           }
         },
       ]
@@ -90,39 +104,35 @@ export default function OrdersScreen() {
 
   if (orders.length === 0) {
     return (
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <View style={styles.emptyContainer}>
-          <Ionicons name="receipt-outline" size={100} color={colors.text + '40'} />
-          <Text style={[styles.emptyTitle, { color: colors.text }]}>
-            Belum Ada Pesanan
-          </Text>
-          <Text style={[styles.emptySubtitle, { color: colors.text }]}>
-            Pesanan Anda akan muncul di sini
-          </Text>
-        </View>
+      <View style={[commonStyles.container, commonStyles.center, { backgroundColor: colors.background }]}>
+        <Ionicons name="receipt-outline" size={100} color={colors.text + '40'} />
+        <Text style={[styles.emptyTitle, { color: colors.text }]}>Belum Ada Pesanan</Text>
+        <Text style={[styles.emptySubtitle, { color: colors.text }]}>Pesanan Anda akan muncul di sini</Text>
       </View>
     );
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.primary }]}>
-        <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>Riwayat Pesanan</Text>
-          <Text style={styles.headerSubtitle}>
-            {orders.length} pesanan • Total: {orders.reduce((sum, order) => sum + order.items.length, 0)} item
-          </Text>
-        </View>
-      </View>
+    <View style={[commonStyles.container, { backgroundColor: colors.background }]}>
+      <PageHeader
+        title="Riwayat Pesanan"
+        subtitle={`${orders.length} pesanan • Total: ${orders.reduce((sum, order) => sum + order.items.length, 0)} item`}
+        rightAction={
+          orders.filter(o => o.status !== 'pending').length > 0
+            ? { icon: 'trash-outline', label: 'Bersihkan', onPress: handleClearHistory }
+            : undefined
+        }
+      />
 
       <FlatList
         data={orders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())}
         keyExtractor={(item) => item.id}
+        bounces={false}
+        overScrollMode="never"
         renderItem={({ item }) => (
           <View style={[styles.orderCard, { backgroundColor: colors.card }]}>
             <View style={styles.orderHeader}>
-              <View>
+              <View style={{ flex: 1 }}>
                 <Text style={[styles.orderId, { color: colors.text }]}>
                   Order #{item.id.slice(-6).toUpperCase()}
                 </Text>
@@ -130,26 +140,20 @@ export default function OrdersScreen() {
                   {formatDate(item.createdAt)}
                 </Text>
               </View>
-              <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) + '20' }]}>
-                <Ionicons 
-                  name={getStatusIcon(item.status)} 
-                  size={16} 
-                  color={getStatusColor(item.status)} 
-                />
-                <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>
-                  {item.status === 'pending' ? 'Menunggu' : 
-                   item.status === 'completed' ? 'Selesai' : 'Dibatalkan'}
-                </Text>
+              <View style={styles.orderHeaderRight}>
+                <StatusBadge type="order" value={item.status} />
+                <TouchableOpacity style={styles.deleteOrderButton} onPress={() => handleDeleteOrder(item.id)}>
+                  <Ionicons name="trash-outline" size={18} color={colors.error} />
+                </TouchableOpacity>
               </View>
             </View>
 
             <View style={styles.orderItems}>
-              {item.items.slice(0, 3).map((cartItem, index) => (
+              {item.items.slice(0, 3).map((cartItem) => (
                 <View key={cartItem.id} style={styles.orderItem}>
                   <Text style={styles.itemEmoji}>{cartItem.product.image}</Text>
                   <View style={styles.itemDetails}>
-                    <Text style={[styles.itemName, { color: colors.text }]} 
-                          numberOfLines={1}>
+                    <Text style={[styles.itemName, { color: colors.text }]} numberOfLines={1}>
                       {cartItem.product.name}
                     </Text>
                     <Text style={[styles.itemQuantity, { color: colors.text + '80' }]}>
@@ -169,9 +173,7 @@ export default function OrdersScreen() {
             </View>
 
             <View style={styles.orderFooter}>
-              <Text style={[styles.totalLabel, { color: colors.text }]}>
-                Total Pesanan
-              </Text>
+              <Text style={[styles.totalLabel, { color: colors.text }]}>Total Pesanan</Text>
               <Text style={[styles.totalAmount, { color: colors.primary }]}>
                 Rp {item.total.toLocaleString()}
               </Text>
@@ -179,23 +181,19 @@ export default function OrdersScreen() {
 
             {item.status === 'pending' && (
               <View style={styles.orderActions}>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={[styles.actionButton, { backgroundColor: colors.error + '20' }]}
                   onPress={() => handleCancelOrder(item.id)}
                 >
                   <Ionicons name="close-circle" size={16} color={colors.error} />
-                  <Text style={[styles.actionText, { color: colors.error }]}>
-                    Batalkan
-                  </Text>
+                  <Text style={[styles.actionText, { color: colors.error }]}>Batalkan</Text>
                 </TouchableOpacity>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={[styles.actionButton, { backgroundColor: colors.success + '20' }]}
                   onPress={() => handleCompleteOrder(item.id)}
                 >
                   <Ionicons name="checkmark-circle" size={16} color={colors.success} />
-                  <Text style={[styles.actionText, { color: colors.success }]}>
-                    Selesai
-                  </Text>
+                  <Text style={[styles.actionText, { color: colors.success }]}>Selesai</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -208,19 +206,11 @@ export default function OrdersScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 40,
-  },
   emptyTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    marginBottom: 8,
+    marginTop: spacing.lg,
+    marginBottom: spacing.sm,
     textAlign: 'center',
   },
   emptySubtitle: {
@@ -228,46 +218,26 @@ const styles = StyleSheet.create({
     opacity: 0.7,
     textAlign: 'center',
   },
-  header: {
-    paddingTop: 28,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
-  },
-  headerContent: {
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginBottom: 4,
-  },
-  headerSubtitle: {
-    fontSize: 16,
-    color: '#FFFFFF',
-    opacity: 0.9,
-  },
   listContainer: {
-    padding: 16,
-    paddingBottom: 20,
+    padding: spacing.lg,
+    paddingBottom: spacing.xxl,
   },
   orderCard: {
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    marginBottom: spacing.lg,
+    ...shadows.small,
   },
   orderHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 12,
+    marginBottom: spacing.md,
+  },
+  orderHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
   },
   orderId: {
     fontSize: 16,
@@ -277,29 +247,20 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 2,
   },
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    gap: 4,
-  },
-  statusText: {
-    fontSize: 12,
-    fontWeight: '600',
+  deleteOrderButton: {
+    padding: 4,
   },
   orderItems: {
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
   orderItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   itemEmoji: {
     fontSize: 20,
-    marginRight: 8,
+    marginRight: spacing.sm,
     width: 24,
   },
   itemDetails: {
@@ -326,7 +287,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 12,
+    paddingTop: spacing.md,
     borderTopWidth: 1,
     borderTopColor: '#E0E0E0',
   },
@@ -340,16 +301,16 @@ const styles = StyleSheet.create({
   },
   orderActions: {
     flexDirection: 'row',
-    gap: 8,
-    marginTop: 12,
+    gap: spacing.sm,
+    marginTop: spacing.md,
   },
   actionButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 8,
-    borderRadius: 8,
+    padding: spacing.sm,
+    borderRadius: radius.sm,
     gap: 4,
   },
   actionText: {

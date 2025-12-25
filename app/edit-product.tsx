@@ -1,38 +1,34 @@
-import React, { useEffect } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  Alert,
-} from 'react-native';
-import { useForm, Controller } from 'react-hook-form';
-import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useStore } from '../store/useStore';
-import { Colors } from '../constants/Colors';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import React, { useEffect, useRef } from 'react';
+import { Controller, useForm } from 'react-hook-form';
+import {
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import Toast from 'react-native-toast-message';
-
-interface ProductForm {
-  name: string;
-  description: string;
-  price: string;
-  image: string;
-  category: string;
-  stock: string;
-}
+import { CategoryPicker, EmojiPicker, FormInput, FormSection, HeroHeader } from '../components';
+import { Colors } from '../constants/Colors';
+import { commonStyles, formStyles } from '../constants/Styles';
+import { useStore } from '../store/useStore';
+import { ProductForm } from '../types';
 
 export default function EditProductScreen() {
-  const { products, editProduct, isDarkMode } = useStore();
-  const router = useRouter();
   const { id } = useLocalSearchParams();
+  const { products, updateProductAsync, deleteProductAsync, isDarkMode } = useStore();
+  const router = useRouter();
   const colors = Colors[isDarkMode ? 'dark' : 'light'];
+  const scrollViewRef = useRef<ScrollView>(null);
 
   const product = products.find(p => p.id === id);
 
-  const { control, handleSubmit, formState: { errors }, reset } = useForm<ProductForm>({
+  const { control, handleSubmit, formState: { errors }, reset, watch } = useForm<ProductForm>({
     defaultValues: {
       name: '',
       description: '',
@@ -43,7 +39,8 @@ export default function EditProductScreen() {
     }
   });
 
-  // Set form values ketika product ditemukan
+  const selectedEmoji = watch('image');
+
   useEffect(() => {
     if (product) {
       reset({
@@ -57,29 +54,28 @@ export default function EditProductScreen() {
     }
   }, [product, reset]);
 
-  const categories = ['Cake', 'Cookies', 'Pastry', 'Bread', 'Dessert'];
-  const emojis = ['🍰', '🍪', '🥐', '🍞', '🎂', '🧁', '🍩', '🥨', '🥞', '🍫'];
-
-  const onSubmit = (data: ProductForm) => {
+  const onSubmit = async (data: ProductForm) => {
     if (!product) return;
 
-    const productData = {
-      name: data.name,
-      description: data.description,
-      price: Number(data.price),
-      image: data.image,
-      category: data.category,
-      stock: Number(data.stock),
-    };
+    try {
+      await updateProductAsync(product.id, {
+        name: data.name,
+        description: data.description,
+        price: Number(data.price),
+        image: data.image,
+        category: data.category,
+        stock: Number(data.stock),
+      });
 
-    editProduct(product.id, productData);
-    
-    Toast.show({
-      type: 'success',
-      text1: 'Produk berhasil diupdate!',
-    });
-    
-    router.back();
+      Toast.show({ type: 'success', text1: 'Produk berhasil diupdate!' });
+      router.back();
+    } catch (error) {
+      Toast.show({
+        type: 'error',
+        text1: 'Gagal mengupdate produk',
+        text2: 'Periksa koneksi internet Anda',
+      });
+    }
   };
 
   const handleDelete = () => {
@@ -90,390 +86,206 @@ export default function EditProductScreen() {
       `Yakin ingin menghapus ${product.name}?`,
       [
         { text: 'Batal', style: 'cancel' },
-        { 
-          text: 'Hapus', 
+        {
+          text: 'Hapus',
           style: 'destructive',
-          onPress: () => {
-            const { deleteProduct } = useStore.getState();
-            deleteProduct(product.id);
-            Toast.show({
-              type: 'success',
-              text1: 'Produk berhasil dihapus!',
-            });
-            router.back();
+          onPress: async () => {
+            try {
+              await deleteProductAsync(product.id);
+              Toast.show({ type: 'success', text1: 'Produk berhasil dihapus!' });
+              router.back();
+            } catch (error) {
+              Toast.show({
+                type: 'error',
+                text1: 'Gagal menghapus produk',
+                text2: 'Periksa koneksi internet Anda',
+              });
+            }
           }
         },
       ]
     );
   };
 
+  const handleInputFocus = (y: number) => {
+    scrollViewRef.current?.scrollTo({ y: y - 100, animated: true });
+  };
+
   if (!product) {
     return (
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <Text style={[styles.errorText, { color: colors.text }]}>
-          Produk tidak ditemukan
-        </Text>
+      <View style={[commonStyles.container, commonStyles.center, { backgroundColor: colors.background }]}>
+        <Ionicons name="alert-circle-outline" size={80} color={colors.text + '40'} />
+        <Text style={[styles.errorText, { color: colors.text }]}>Produk tidak ditemukan</Text>
       </View>
     );
   }
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={styles.form}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={[styles.title, { color: colors.text }]}>Edit Produk</Text>
-          <Text style={[styles.subtitle, { color: colors.text }]}>
-            Update informasi produk
-          </Text>
-        </View>
+    <KeyboardAvoidingView
+      style={[commonStyles.container, { backgroundColor: colors.background }]}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+    >
+      <ScrollView
+        ref={scrollViewRef}
+        showsVerticalScrollIndicator={false}
+        bounces={false}
+        overScrollMode="never"
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{ paddingBottom: 40 }}
+      >
+        <HeroHeader
+          title="Edit Produk"
+          subtitle={`Update informasi ${product.name}`}
+          emoji={selectedEmoji}
+        />
 
-        {/* Form fields sama seperti AddProduct, tapi dengan data yang sudah terisi */}
-        <View style={styles.inputGroup}>
-          <Text style={[styles.label, { color: colors.text }]}>Nama Produk</Text>
-          <Controller
-            control={control}
-            rules={{
-              required: 'Nama produk harus diisi',
-              minLength: {
-                value: 3,
-                message: 'Nama produk minimal 3 karakter'
-              }
-            }}
-            render={({ field: { onChange, onBlur, value } }) => (
-              <TextInput
-                style={[
-                  styles.input, 
-                  { 
-                    backgroundColor: colors.card,
-                    color: colors.text,
-                    borderColor: errors.name ? colors.error : colors.border
-                  }
-                ]}
-                placeholder="Masukkan nama produk"
-                placeholderTextColor={colors.text + '80'}
-                onBlur={onBlur}
-                onChangeText={onChange}
-                value={value}
+        <View style={formStyles.formWrapper}>
+          <View style={[formStyles.formCard, { backgroundColor: colors.card }]}>
+
+            <FormSection icon="happy-outline" title="Ikon Produk">
+              <Controller
+                control={control}
+                name="image"
+                render={({ field: { onChange, value } }) => (
+                  <EmojiPicker selectedEmoji={value} onSelect={onChange} />
+                )}
               />
-            )}
-            name="name"
-          />
-          {errors.name && (
-            <Text style={[styles.errorText, { color: colors.error }]}>
-              {errors.name.message}
-            </Text>
-          )}
-        </View>
+            </FormSection>
 
-        {/* Description Input */}
-        <View style={styles.inputGroup}>
-          <Text style={[styles.label, { color: colors.text }]}>Deskripsi</Text>
-          <Controller
-            control={control}
-            rules={{
-              required: 'Deskripsi harus diisi',
-              minLength: {
-                value: 10,
-                message: 'Deskripsi minimal 10 karakter'
-              }
-            }}
-            render={({ field: { onChange, onBlur, value } }) => (
-              <TextInput
-                style={[
-                  styles.input, 
-                  styles.textArea,
-                  { 
-                    backgroundColor: colors.card,
-                    color: colors.text,
-                    borderColor: errors.description ? colors.error : colors.border
-                  }
-                ]}
-                placeholder="Masukkan deskripsi produk"
-                placeholderTextColor={colors.text + '80'}
-                onBlur={onBlur}
-                onChangeText={onChange}
-                value={value}
-                multiline
-                numberOfLines={3}
+            <FormSection icon="information-circle-outline" title="Informasi Dasar">
+              <Controller
+                control={control}
+                name="name"
+                rules={{ required: 'Nama produk harus diisi' }}
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <FormInput
+                    label="Nama Produk"
+                    icon="cube-outline"
+                    placeholder="Masukkan nama produk"
+                    onBlur={onBlur}
+                    onChangeText={onChange}
+                    value={value}
+                    error={errors.name?.message}
+                  />
+                )}
               />
-            )}
-            name="description"
-          />
-          {errors.description && (
-            <Text style={[styles.errorText, { color: colors.error }]}>
-              {errors.description.message}
-            </Text>
-          )}
-        </View>
-
-        {/* Price Input */}
-        <View style={styles.inputGroup}>
-          <Text style={[styles.label, { color: colors.text }]}>Harga (Rp)</Text>
-          <Controller
-            control={control}
-            rules={{
-              required: 'Harga harus diisi',
-              pattern: {
-                value: /^\d+$/,
-                message: 'Harga harus berupa angka'
-              }
-            }}
-            render={({ field: { onChange, onBlur, value } }) => (
-              <TextInput
-                style={[
-                  styles.input, 
-                  { 
-                    backgroundColor: colors.card,
-                    color: colors.text,
-                    borderColor: errors.price ? colors.error : colors.border
-                  }
-                ]}
-                placeholder="Masukkan harga"
-                placeholderTextColor={colors.text + '80'}
-                onBlur={onBlur}
-                onChangeText={onChange}
-                value={value}
-                keyboardType="numeric"
+              <Controller
+                control={control}
+                name="description"
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <FormInput
+                    label="Deskripsi"
+                    placeholder="Deskripsikan produk Anda..."
+                    onBlur={onBlur}
+                    onChangeText={onChange}
+                    value={value}
+                    multiline
+                    numberOfLines={4}
+                    error={errors.description?.message}
+                  />
+                )}
               />
-            )}
-            name="price"
-          />
-          {errors.price && (
-            <Text style={[styles.errorText, { color: colors.error }]}>
-              {errors.price.message}
-            </Text>
-          )}
-        </View>
+            </FormSection>
 
-        {/* Category Picker */}
-        <View style={styles.inputGroup}>
-          <Text style={[styles.label, { color: colors.text }]}>Kategori</Text>
-          <Controller
-            control={control}
-            render={({ field: { onChange, value } }) => (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                <View style={styles.categoryContainer}>
-                  {categories.map((category) => (
-                    <TouchableOpacity
-                      key={category}
-                      style={[
-                        styles.categoryButton,
-                        {
-                          backgroundColor: value === category ? colors.primary : colors.card,
-                          borderColor: colors.border,
-                        }
-                      ]}
-                      onPress={() => onChange(category)}
-                    >
-                      <Text style={[
-                        styles.categoryText,
-                        { color: value === category ? '#FFFFFF' : colors.text }
-                      ]}>
-                        {category}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
+            <FormSection icon="pricetag-outline" title="Kategori">
+              <Controller
+                control={control}
+                name="category"
+                render={({ field: { onChange, value } }) => (
+                  <CategoryPicker selectedCategory={value} onSelect={onChange} />
+                )}
+              />
+            </FormSection>
+
+            <FormSection icon="cash-outline" title="Harga & Stok">
+              <View style={formStyles.rowInputs}>
+                <View style={{ flex: 1 }}>
+                  <Controller
+                    control={control}
+                    name="price"
+                    rules={{
+                      required: 'Harga harus diisi',
+                      pattern: { value: /^\d+$/, message: 'Harus angka' }
+                    }}
+                    render={({ field: { onChange, onBlur, value } }) => (
+                      <FormInput
+                        label="Harga (Rp)"
+                        prefix="Rp"
+                        placeholder="0"
+                        onBlur={onBlur}
+                        onChangeText={onChange}
+                        value={value}
+                        keyboardType="numeric"
+                        onFocus={() => handleInputFocus(700)}
+                        error={errors.price?.message}
+                      />
+                    )}
+                  />
                 </View>
-              </ScrollView>
-            )}
-            name="category"
-          />
-        </View>
-
-        {/* Stock Input */}
-        <View style={styles.inputGroup}>
-          <Text style={[styles.label, { color: colors.text }]}>Stok</Text>
-          <Controller
-            control={control}
-            rules={{
-              required: 'Stok harus diisi',
-              pattern: {
-                value: /^\d+$/,
-                message: 'Stok harus berupa angka'
-              }
-            }}
-            render={({ field: { onChange, onBlur, value } }) => (
-              <TextInput
-                style={[
-                  styles.input, 
-                  { 
-                    backgroundColor: colors.card,
-                    color: colors.text,
-                    borderColor: errors.stock ? colors.error : colors.border
-                  }
-                ]}
-                placeholder="Masukkan jumlah stok"
-                placeholderTextColor={colors.text + '80'}
-                onBlur={onBlur}
-                onChangeText={onChange}
-                value={value}
-                keyboardType="numeric"
-              />
-            )}
-            name="stock"
-          />
-          {errors.stock && (
-            <Text style={[styles.errorText, { color: colors.error }]}>
-              {errors.stock.message}
-            </Text>
-          )}
-        </View>
-
-        {/* Emoji Picker */}
-        <View style={styles.inputGroup}>
-          <Text style={[styles.label, { color: colors.text }]}>Emoji Produk</Text>
-          <Controller
-            control={control}
-            rules={{
-              required: 'Emoji harus dipilih'
-            }}
-            render={({ field: { onChange, value } }) => (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                <View style={styles.emojiContainer}>
-                  {emojis.map((emoji) => (
-                    <TouchableOpacity
-                      key={emoji}
-                      style={[
-                        styles.emojiButton,
-                        {
-                          backgroundColor: value === emoji ? colors.primary : colors.card,
-                          borderColor: colors.border,
-                        }
-                      ]}
-                      onPress={() => onChange(emoji)}
-                    >
-                      <Text style={styles.emojiText}>{emoji}</Text>
-                    </TouchableOpacity>
-                  ))}
+                <View style={{ flex: 1 }}>
+                  <Controller
+                    control={control}
+                    name="stock"
+                    rules={{
+                      required: 'Stok harus diisi',
+                      pattern: { value: /^\d+$/, message: 'Harus angka' }
+                    }}
+                    render={({ field: { onChange, onBlur, value } }) => (
+                      <FormInput
+                        label="Stok"
+                        icon="layers-outline"
+                        placeholder="0"
+                        suffix="pcs"
+                        onBlur={onBlur}
+                        onChangeText={onChange}
+                        value={value}
+                        keyboardType="numeric"
+                        onFocus={() => handleInputFocus(700)}
+                        error={errors.stock?.message}
+                      />
+                    )}
+                  />
                 </View>
-              </ScrollView>
-            )}
-            name="image"
-          />
-        </View>
+              </View>
+            </FormSection>
+          </View>
 
-        {/* Action Buttons */}
-        <View style={styles.actionButtons}>
-          <TouchableOpacity
-            style={[styles.submitButton, { backgroundColor: colors.primary }]}
-            onPress={handleSubmit(onSubmit)}
-          >
-            <Ionicons name="save" size={20} color="#FFFFFF" />
-            <Text style={styles.submitButtonText}>Update Produk</Text>
-          </TouchableOpacity>
+          <View style={formStyles.actionButtons}>
+            <TouchableOpacity
+              style={[formStyles.primaryButton, { backgroundColor: colors.primary }]}
+              onPress={handleSubmit(onSubmit)}
+            >
+              <Ionicons name="checkmark-circle" size={22} color="#FFFFFF" />
+              <Text style={formStyles.primaryButtonText}>Simpan Perubahan</Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.deleteButton, { borderColor: colors.error }]}
-            onPress={handleDelete}
-          >
-            <Ionicons name="trash" size={20} color={colors.error} />
-            <Text style={[styles.deleteButtonText, { color: colors.error }]}>
-              Hapus Produk
-            </Text>
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={[formStyles.secondaryButton, { backgroundColor: colors.error + '15', borderColor: colors.error }]}
+              onPress={handleDelete}
+            >
+              <Ionicons name="trash-outline" size={20} color={colors.error} />
+              <Text style={[formStyles.secondaryButtonText, { color: colors.error }]}>Hapus Produk</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[formStyles.secondaryButton, { backgroundColor: colors.background, borderColor: colors.border }]}
+              onPress={() => router.back()}
+            >
+              <Ionicons name="close-outline" size={20} color={colors.text} />
+              <Text style={[formStyles.secondaryButtonText, { color: colors.text }]}>Batal</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  form: {
-    padding: 20,
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: 30,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    opacity: 0.7,
-  },
-  inputGroup: {
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  input: {
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-  },
-  textArea: {
-    minHeight: 80,
-    textAlignVertical: 'top',
-  },
   errorText: {
-    fontSize: 12,
-    marginTop: 4,
-  },
-  categoryContainer: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  categoryButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-  },
-  categoryText: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  emojiContainer: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  emojiButton: {
-    padding: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  emojiText: {
-    fontSize: 20,
-  },
-  actionButtons: {
-    gap: 12,
-    marginTop: 20,
-  },
-  submitButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 16,
-    borderRadius: 8,
-    gap: 8,
-  },
-  submitButtonText: {
-    color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: 'bold',
-  },
-  deleteButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 16,
-    borderRadius: 8,
-    borderWidth: 1,
-    gap: 8,
-  },
-  deleteButtonText: {
-    fontSize: 16,
-    fontWeight: '500',
+    marginTop: 16,
+    textAlign: 'center',
   },
 });

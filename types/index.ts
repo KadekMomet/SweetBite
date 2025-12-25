@@ -21,3 +21,15 @@ export interface Order {
   status: 'pending' | 'completed' | 'cancelled';
   createdAt: Date;
 }
+
+/**
+ * Form data interface for product add/edit forms
+ */
+export interface ProductForm {
+  name: string;
+  description: string;
+  price: string;
+  image: string;
+  category: string;
+  stock: string;
+}

@@ -1,296 +1,382 @@
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  FlatList,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  TextInput,
-} from 'react-native';
-import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useStore } from '../../store/useStore';
-import { ProductCard } from '../../components/ProductCard';
+import { useRouter } from 'expo-router';
+import React, { useState } from 'react';
+import { FlatList, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { EmptyState, SearchBar, SectionHeader } from '../../components';
+import { FILTER_CATEGORIES } from '../../constants/Categories';
 import { Colors } from '../../constants/Colors';
+import { commonStyles, radius, shadows, spacing } from '../../constants/Styles';
+import { useStore } from '../../store/useStore';
+import { Product } from '../../types';
 
-export default function ProductsScreen() {
-  const { products, cart, isDarkMode } = useStore();
+export default function HomeScreen() {
+  const { products, isDarkMode } = useStore();
   const router = useRouter();
   const colors = Colors[isDarkMode ? 'dark' : 'light'];
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('All');
 
-  const categories = ['All', 'Cake', 'Cookies', 'Pastry', 'Bread', 'Dessert'];
+  // Filter products based on search
+  const searchResults = searchQuery.length > 0
+    ? products.filter(product =>
+      product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      product.description.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+    : [];
 
-  const filteredProducts = products.filter(product => {
-    const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         product.description.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = selectedCategory === 'All' || product.category === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
+  // Newest products (first 6 from the list)
+  const newestProducts = products.slice(0, 6);
 
-  const getCategoryStats = (category: string) => {
-    if (category === 'All') return products.length;
+  // Low stock products (stock < 5 and > 0)
+  const lowStockProducts = products.filter(p => p.stock > 0 && p.stock <= 5);
+
+  // Get products count by category
+  const getCategoryCount = (category: string) => {
     return products.filter(p => p.category === category).length;
   };
 
+  // Mini Product Card for horizontal list
+  const MiniProductCard = ({ product }: { product: Product }) => (
+    <TouchableOpacity
+      style={[styles.productCard, { backgroundColor: colors.card }]}
+      onPress={() => router.push(`/product-detail?id=${product.id}`)}
+    >
+      <Text style={styles.productEmoji}>{product.image}</Text>
+      <Text style={[styles.productName, { color: colors.text }]} numberOfLines={1}>
+        {product.name}
+      </Text>
+      <Text style={[styles.productPrice, { color: colors.primary }]}>
+        Rp {product.price.toLocaleString()}
+      </Text>
+    </TouchableOpacity>
+  );
+
+  // Low Stock Card
+  const LowStockCard = ({ product }: { product: Product }) => (
+    <TouchableOpacity
+      style={[styles.lowStockCard, { backgroundColor: colors.card }]}
+      onPress={() => router.push(`/product-detail?id=${product.id}`)}
+    >
+      <View style={[styles.lowStockBadge, { backgroundColor: colors.error }]}>
+        <Text style={styles.lowStockBadgeText}>Sisa {product.stock}</Text>
+      </View>
+      <Text style={styles.lowStockEmoji}>{product.image}</Text>
+      <View style={styles.lowStockInfo}>
+        <Text style={[styles.lowStockName, { color: colors.text }]} numberOfLines={1}>
+          {product.name}
+        </Text>
+        <Text style={[styles.lowStockPrice, { color: colors.primary }]}>
+          Rp {product.price.toLocaleString()}
+        </Text>
+      </View>
+    </TouchableOpacity>
+  );
+
+  // Search Result Card
+  const SearchResultCard = ({ product }: { product: Product }) => (
+    <TouchableOpacity
+      style={[styles.searchResultCard, { backgroundColor: colors.card }]}
+      onPress={() => {
+        setSearchQuery('');
+        router.push(`/product-detail?id=${product.id}`);
+      }}
+    >
+      <Text style={styles.searchResultEmoji}>{product.image}</Text>
+      <View style={{ flex: 1 }}>
+        <Text style={[styles.searchResultName, { color: colors.text }]}>{product.name}</Text>
+        <Text style={[styles.productPrice, { color: colors.primary }]}>
+          Rp {product.price.toLocaleString()}
+        </Text>
+      </View>
+      <Ionicons name="chevron-forward" size={20} color={colors.text + '40'} />
+    </TouchableOpacity>
+  );
+
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Header dengan Gradient Effect */}
-      <View style={[styles.header, { backgroundColor: colors.primary }]}>
-        <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>SweetBite 🎂</Text>
-          <Text style={styles.headerSubtitle}>Tempatnya Kue Lezat</Text>
-        </View>
-        <View style={styles.statsContainer}>
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>{products.length}</Text>
-            <Text style={styles.statLabel}>Produk</Text>
-          </View>
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>
-              {cart.reduce((sum, item) => sum + item.quantity, 0)}
-            </Text>
-            <Text style={styles.statLabel}>Item</Text>
-          </View>
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>
-              Rp {cart.reduce((sum, item) => sum + (item.product.price * item.quantity), 0).toLocaleString()}
-            </Text>
-            <Text style={styles.statLabel}>Total</Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Search Bar */}
-      <View style={[styles.searchContainer, { backgroundColor: colors.card }]}>
-        <Ionicons name="search" size={20} color={colors.text + '80'} />
-        <TextInput
-          style={[styles.searchInput, { color: colors.text }]}
-          placeholder="Cari kue favorit..."
-          placeholderTextColor={colors.text + '80'}
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
-        {searchQuery.length > 0 && (
-          <TouchableOpacity onPress={() => setSearchQuery('')}>
-            <Ionicons name="close-circle" size={20} color={colors.text + '80'} />
-          </TouchableOpacity>
-        )}
-      </View>
-
-      {/* Category Filter */}
-      <ScrollView 
-        horizontal 
-        showsHorizontalScrollIndicator={false}
-        style={styles.categoryContainer}
-      >
-        {categories.map((category) => (
-          <TouchableOpacity
-            key={category}
-            style={[
-              styles.categoryButton,
-              {
-                backgroundColor: selectedCategory === category ? colors.primary : colors.card,
-                borderColor: colors.border,
-              }
-            ]}
-            onPress={() => setSelectedCategory(category)}
-          >
-            <Text style={[
-              styles.categoryText,
-              { 
-                color: selectedCategory === category ? '#FFFFFF' : colors.text,
-                fontWeight: selectedCategory === category ? 'bold' : 'normal'
-              }
-            ]}>
-              {category} ({getCategoryStats(category)})
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-
-      {/* Products Grid */}
-      <FlatList
-        data={filteredProducts}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => <ProductCard product={item} />}
-        contentContainerStyle={styles.listContainer}
+    <View style={[commonStyles.container, { backgroundColor: colors.background }]}>
+      <ScrollView
         showsVerticalScrollIndicator={false}
-        numColumns={1}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Ionicons name="fast-food-outline" size={80} color={colors.text + '40'} />
-            <Text style={[styles.emptyText, { color: colors.text }]}>
-              {searchQuery ? 'Produk tidak ditemukan' : 'Belum ada produk'}
+        bounces={false}
+        overScrollMode="never"
+        contentContainerStyle={{ backgroundColor: colors.background }}
+      >
+        {/* Hero Section */}
+        <View style={[styles.heroSection, { backgroundColor: colors.primary }]}>
+          <Text style={styles.heroTitle}>🧁 SweetBite</Text>
+          <Text style={styles.heroSubtitle}>Temukan kue favoritmu!</Text>
+          <SearchBar
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Cari kue..."
+          />
+        </View>
+
+        {/* Search Results */}
+        {searchQuery.length > 0 ? (
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>
+              Hasil Pencarian ({searchResults.length})
             </Text>
-            <Text style={[styles.emptySubtext, { color: colors.text }]}>
-              {searchQuery ? 'Coba kata kunci lain' : 'Yuk tambahkan produk pertama!'}
-            </Text>
-            {!searchQuery && (
-              <TouchableOpacity 
-                style={[styles.addFirstButton, { backgroundColor: colors.primary }]}
-                onPress={() => router.push('/add-product')}
-              >
-                <Ionicons name="add" size={20} color="#FFFFFF" />
-                <Text style={styles.addFirstButtonText}>Tambah Produk Pertama</Text>
-              </TouchableOpacity>
+            {searchResults.length > 0 ? (
+              searchResults.slice(0, 5).map(product => (
+                <SearchResultCard key={product.id} product={product} />
+              ))
+            ) : (
+              <Text style={[styles.noResults, { color: colors.text }]}>
+                Produk tidak ditemukan
+              </Text>
             )}
           </View>
-        }
-        ListHeaderComponent={
-          filteredProducts.length > 0 ? (
-            <View style={styles.listHeader}>
-              <Text style={[styles.listHeaderText, { color: colors.text }]}>
-                Menampilkan {filteredProducts.length} produk
-              </Text>
-            </View>
-          ) : null
-        }
-      />
+        ) : (
+          <>
+            {/* CTA Button */}
+            <TouchableOpacity
+              style={[styles.ctaButton, { backgroundColor: colors.secondary }]}
+              onPress={() => router.push('/(tabs)/products')}
+            >
+              <View style={commonStyles.row}>
+                <Ionicons name="storefront" size={24} color="#FFFFFF" />
+                <View style={{ marginLeft: spacing.md }}>
+                  <Text style={styles.ctaTitle}>Jelajahi Semua Produk</Text>
+                  <Text style={styles.ctaSubtitle}>{products.length} produk tersedia</Text>
+                </View>
+              </View>
+              <Ionicons name="arrow-forward-circle" size={28} color="#FFFFFF" />
+            </TouchableOpacity>
 
-      {/* Floating Action Button */}
-      <TouchableOpacity 
-        style={[styles.fab, { backgroundColor: colors.primary }]}
-        onPress={() => router.push('/add-product')}
-      >
-        <Ionicons name="add" size={24} color="#FFFFFF" />
-      </TouchableOpacity>
+            {/* Category Grid */}
+            <View style={styles.section}>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Kategori</Text>
+              <View style={styles.categoryGrid}>
+                {FILTER_CATEGORIES.map((category) => (
+                  <TouchableOpacity
+                    key={category.name}
+                    style={[styles.categoryCard, { backgroundColor: colors.card }]}
+                    onPress={() => router.push(`/(tabs)/products`)}
+                  >
+                    <Text style={styles.categoryIcon}>{category.icon}</Text>
+                    <Text style={[styles.categoryLabel, { color: colors.text }]}>
+                      {category.label}
+                    </Text>
+                    <Text style={[styles.categoryCount, { color: colors.primary }]}>
+                      {getCategoryCount(category.name)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {/* Produk Terbaru */}
+            {newestProducts.length > 0 && (
+              <View style={styles.section}>
+                <SectionHeader
+                  title="✨ Produk Terbaru"
+                  onSeeAll={() => router.push('/(tabs)/products')}
+                />
+                <FlatList
+                  horizontal
+                  data={newestProducts}
+                  keyExtractor={(item) => item.id}
+                  renderItem={({ item }) => <MiniProductCard product={item} />}
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.horizontalList}
+                />
+              </View>
+            )}
+
+            {/* Stok Terbatas */}
+            {lowStockProducts.length > 0 && (
+              <View style={styles.section}>
+                <SectionHeader title="🔥 Stok Terbatas" />
+                <View style={styles.lowStockList}>
+                  {lowStockProducts.slice(0, 3).map(product => (
+                    <LowStockCard key={product.id} product={product} />
+                  ))}
+                </View>
+              </View>
+            )}
+
+            {/* Empty State */}
+            {products.length === 0 && (
+              <EmptyState
+                icon="🧁"
+                title="Belum ada produk"
+                subtitle="Tambahkan produk pertamamu!"
+                buttonText="Tambah Produk"
+                onButtonPress={() => router.push('/add-product')}
+              />
+            )}
+          </>
+        )}
+
+        {/* Bottom Spacing */}
+        <View style={{ height: 100 }} />
+      </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
+  heroSection: {
+    paddingTop: spacing.xl,
+    paddingBottom: 40,
+    paddingHorizontal: spacing.xl,
+    borderBottomLeftRadius: radius.xl,
+    borderBottomRightRadius: radius.xl,
   },
-  header: {
-    paddingTop: 28,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
-  },
-  headerContent: {
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  headerTitle: {
-    fontSize: 32,
+  heroTitle: {
+    fontSize: 28,
     fontWeight: 'bold',
     color: '#FFFFFF',
-    marginBottom: 4,
+    textAlign: 'center',
   },
-  headerSubtitle: {
-    fontSize: 16,
+  heroSubtitle: {
+    fontSize: 14,
     color: '#FFFFFF',
     opacity: 0.9,
+    textAlign: 'center',
+    marginTop: 4,
+    marginBottom: spacing.xl,
   },
-  statsContainer: {
+  section: {
+    marginTop: spacing.xl,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    paddingHorizontal: spacing.lg,
+    marginBottom: spacing.md,
+  },
+  ctaButton: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  statItem: {
     alignItems: 'center',
+    justifyContent: 'space-between',
+    marginHorizontal: spacing.lg,
+    marginTop: -spacing.xl,
+    padding: spacing.lg,
+    borderRadius: radius.lg,
+    ...shadows.medium,
   },
-  statNumber: {
-    fontSize: 20,
+  ctaTitle: {
+    fontSize: 16,
     fontWeight: 'bold',
     color: '#FFFFFF',
-    marginBottom: 4,
   },
-  statLabel: {
+  ctaSubtitle: {
     fontSize: 12,
     color: '#FFFFFF',
     opacity: 0.9,
   },
-  searchContainer: {
+  categoryGrid: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: spacing.md,
+    gap: spacing.sm,
+  },
+  categoryCard: {
+    width: '18%',
+    aspectRatio: 0.85,
     alignItems: 'center',
-    margin: 16,
-    padding: 12,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  searchInput: {
-    flex: 1,
-    marginLeft: 8,
-    fontSize: 16,
-  },
-  categoryContainer: {
-    paddingHorizontal: 16,
-    marginBottom: 16,
-  },
-  categoryButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    marginRight: 8,
-  },
-  categoryText: {
-    fontSize: 14,
-  },
-  listContainer: {
-    paddingHorizontal: 8,
-    paddingBottom: 100,
-  },
-  listHeader: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  listHeaderText: {
-    fontSize: 14,
-    opacity: 0.7,
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    padding: 40,
-    marginTop: 40,
-  },
-  emptyText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  emptySubtext: {
-    fontSize: 14,
-    opacity: 0.7,
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  addFirstButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 25,
-    gap: 8,
-  },
-  addFirstButtonText: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
-    fontSize: 14,
-  },
-  fab: {
-    position: 'absolute',
-    bottom: 30,
-    right: 25,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
     justifyContent: 'center',
+    borderRadius: radius.md,
+    padding: spacing.sm,
+  },
+  categoryIcon: {
+    fontSize: 28,
+    marginBottom: 4,
+  },
+  categoryLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  categoryCount: {
+    fontSize: 10,
+    fontWeight: '500',
+    marginTop: 2,
+  },
+  horizontalList: {
+    paddingHorizontal: spacing.lg,
+    gap: spacing.md,
+  },
+  productCard: {
+    width: 130,
+    padding: spacing.md,
+    borderRadius: radius.md,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+  },
+  productEmoji: {
+    fontSize: 40,
+    marginBottom: spacing.sm,
+  },
+  productName: {
+    fontSize: 13,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  productPrice: {
+    fontSize: 13,
+    fontWeight: 'bold',
+  },
+  lowStockList: {
+    paddingHorizontal: spacing.lg,
+    gap: spacing.sm,
+  },
+  lowStockCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.md,
+    borderRadius: radius.md,
+    position: 'relative',
+  },
+  lowStockBadge: {
+    position: 'absolute',
+    top: spacing.sm,
+    right: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    borderRadius: spacing.sm,
+  },
+  lowStockBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  lowStockEmoji: {
+    fontSize: 36,
+    marginRight: spacing.md,
+  },
+  lowStockInfo: {
+    flex: 1,
+  },
+  lowStockName: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  lowStockPrice: {
+    fontSize: 14,
+    fontWeight: '500',
+    marginTop: 2,
+  },
+  searchResultCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.md,
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.sm,
+    borderRadius: radius.md,
+  },
+  searchResultEmoji: {
+    fontSize: 32,
+    marginRight: spacing.md,
+  },
+  searchResultName: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  noResults: {
+    textAlign: 'center',
+    padding: spacing.xl,
+    opacity: 0.6,
   },
 });

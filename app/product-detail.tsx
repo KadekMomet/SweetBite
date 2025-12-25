@@ -1,20 +1,16 @@
-import React from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  Alert,
-} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useStore } from '../store/useStore';
-import { Colors } from '../constants/Colors';
+import React from 'react';
+import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Toast from 'react-native-toast-message';
+import { Button, HeroHeader, StatusBadge } from '../components';
+import { Colors } from '../constants/Colors';
+import { commonStyles, radius, shadows, spacing } from '../constants/Styles';
+import { useStore } from '../store/useStore';
 
 export default function ProductDetailScreen() {
   const { id } = useLocalSearchParams();
-  const { products, addToCart, deleteProduct, isDarkMode } = useStore();
+  const { products, deleteProductAsync, isDarkMode, cart } = useStore();
   const router = useRouter();
   const colors = Colors[isDarkMode ? 'dark' : 'light'];
 
@@ -22,20 +18,22 @@ export default function ProductDetailScreen() {
 
   if (!product) {
     return (
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <Text style={[styles.errorText, { color: colors.text }]}>
-          Produk tidak ditemukan
-        </Text>
+      <View style={[commonStyles.container, commonStyles.center, { backgroundColor: colors.background }]}>
+        <Ionicons name="alert-circle-outline" size={80} color={colors.text + '40'} />
+        <Text style={[styles.errorText, { color: colors.text }]}>Produk tidak ditemukan</Text>
       </View>
     );
   }
 
+  const cartItem = cart.find(item => item.product.id === product.id);
+  const quantityInCart = cartItem ? cartItem.quantity : 0;
+  const isStockLimitReached = quantityInCart >= product.stock;
+  const isOutOfStock = product.stock === 0;
+  const isDisabled = isOutOfStock || isStockLimitReached;
+  const availableStock = product.stock - quantityInCart;
+
   const handleAddToCart = () => {
-    addToCart(product);
-    Toast.show({
-      type: 'success',
-      text1: 'Produk ditambahkan ke keranjang!',
-    });
+    router.push(`/add-to-cart?id=${product.id}`);
   };
 
   const handleDelete = () => {
@@ -44,16 +42,21 @@ export default function ProductDetailScreen() {
       `Yakin ingin menghapus ${product.name}?`,
       [
         { text: 'Batal', style: 'cancel' },
-        { 
-          text: 'Hapus', 
+        {
+          text: 'Hapus',
           style: 'destructive',
-          onPress: () => {
-            deleteProduct(product.id);
-            Toast.show({
-              type: 'success',
-              text1: 'Produk berhasil dihapus!',
-            });
-            router.back();
+          onPress: async () => {
+            try {
+              await deleteProductAsync(product.id);
+              Toast.show({ type: 'success', text1: 'Produk berhasil dihapus!' });
+              router.back();
+            } catch (error) {
+              Toast.show({
+                type: 'error',
+                text1: 'Gagal menghapus produk',
+                text2: 'Periksa koneksi internet Anda',
+              });
+            }
           }
         },
       ]
@@ -61,166 +64,224 @@ export default function ProductDetailScreen() {
   };
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={styles.content}>
-        {/* Product Image/Emoji */}
-        <View style={styles.emojiContainer}>
-          <Text style={styles.emoji}>{product.image}</Text>
-        </View>
+    <View style={[commonStyles.container, { backgroundColor: colors.background }]}>
+      <ScrollView showsVerticalScrollIndicator={false} bounces={false} overScrollMode="never">
+        <HeroHeader title="" emoji={product.image}>
+          <View style={[styles.categoryBadge, { backgroundColor: 'rgba(255,255,255,0.25)' }]}>
+            <Text style={styles.categoryBadgeText}>{product.category}</Text>
+          </View>
+        </HeroHeader>
 
-        {/* Product Info */}
-        <View style={[styles.infoContainer, { backgroundColor: colors.card }]}>
-          <Text style={[styles.name, { color: colors.text }]}>
-            {product.name}
+        {/* Product Info Card */}
+        <View style={styles.infoWrapper}>
+          <View style={[styles.infoCard, { backgroundColor: colors.card }]}>
+            <View style={styles.infoHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.productName, { color: colors.text }]}>{product.name}</Text>
+                <Text style={[styles.productPrice, { color: colors.primary }]}>
+                  Rp {product.price.toLocaleString()}
+                </Text>
+              </View>
+              <StatusBadge type="stock" value={product.stock} />
+            </View>
+
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+            <View style={styles.descriptionSection}>
+              <Text style={[styles.sectionLabel, { color: colors.text }]}>Deskripsi</Text>
+              <Text style={[styles.description, { color: colors.text }]}>{product.description}</Text>
+            </View>
+
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+            <View style={styles.statsRow}>
+              <View style={styles.statItem}>
+                <Ionicons name="layers-outline" size={20} color={colors.primary} />
+                <Text style={[styles.statLabel, { color: colors.text + '80' }]}>Stok</Text>
+                <Text style={[styles.statValue, { color: colors.text }]}>{product.stock} pcs</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Ionicons name="pricetag-outline" size={20} color={colors.primary} />
+                <Text style={[styles.statLabel, { color: colors.text + '80' }]}>Kategori</Text>
+                <Text style={[styles.statValue, { color: colors.text }]}>{product.category}</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Ionicons name="cart-outline" size={20} color={colors.primary} />
+                <Text style={[styles.statLabel, { color: colors.text + '80' }]}>Di Keranjang</Text>
+                <Text style={[styles.statValue, { color: colors.text }]}>{quantityInCart} pcs</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Action Buttons */}
+          <View style={styles.actionButtons}>
+            <TouchableOpacity
+              style={[styles.editButton, { backgroundColor: colors.card, borderColor: colors.primary }]}
+              onPress={() => router.push(`/edit-product?id=${product.id}`)}
+            >
+              <Ionicons name="create-outline" size={20} color={colors.primary} />
+              <Text style={[styles.editButtonText, { color: colors.primary }]}>Edit</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.deleteButton, { backgroundColor: colors.error + '15', borderColor: colors.error }]}
+              onPress={handleDelete}
+            >
+              <Ionicons name="trash-outline" size={20} color={colors.error} />
+              <Text style={[styles.deleteButtonText, { color: colors.error }]}>Hapus</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </ScrollView>
+
+      {/* Floating Footer */}
+      <View style={[styles.floatingFooter, { backgroundColor: colors.card, borderTopColor: colors.border }]}>
+        <View style={styles.footerInfo}>
+          <Text style={[styles.footerLabel, { color: colors.text + '80' }]}>
+            {isOutOfStock ? 'Stok Habis' : isStockLimitReached ? 'Sudah di keranjang' : `Tersedia ${availableStock} pcs`}
           </Text>
-          <Text style={[styles.category, { color: colors.primary }]}>
-            {product.category}
-          </Text>
-          <Text style={[styles.price, { color: colors.primary }]}>
+          <Text style={[styles.footerPrice, { color: colors.primary }]}>
             Rp {product.price.toLocaleString()}
           </Text>
-          
-          <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>
-              Deskripsi
-            </Text>
-            <Text style={[styles.description, { color: colors.text }]}>
-              {product.description}
-            </Text>
-          </View>
-
-          <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>
-              Stok Tersedia
-            </Text>
-            <Text style={[styles.stock, { color: colors.text }]}>
-              {product.stock} buah
-            </Text>
-          </View>
         </View>
-
-        {/* Action Buttons */}
-        <View style={styles.actionContainer}>
-          <TouchableOpacity
-            style={[styles.addButton, { backgroundColor: colors.primary }]}
-            onPress={handleAddToCart}
-            disabled={product.stock === 0}
-          >
-            <Text style={styles.addButtonText}>
-              {product.stock === 0 ? 'Stok Habis' : '+ Tambah ke Keranjang'}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.editButton, { borderColor: colors.secondary }]}
-            onPress={() => router.push(`/edit-product?id=${product.id}`)}
-          >
-            <Text style={[styles.editButtonText, { color: colors.secondary }]}>
-              ✏️ Edit Produk
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.deleteButton, { borderColor: colors.error }]}
-            onPress={handleDelete}
-          >
-            <Text style={[styles.deleteButtonText, { color: colors.error }]}>
-              🗑️ Hapus Produk
-            </Text>
-          </TouchableOpacity>
-        </View>
+        <Button
+          title={isDisabled ? 'Tidak Tersedia' : 'Tambah ke Keranjang'}
+          onPress={handleAddToCart}
+          icon="cart"
+          disabled={isDisabled}
+        />
       </View>
-    </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
+  errorText: {
+    fontSize: 16,
+    marginTop: spacing.lg,
+    textAlign: 'center',
   },
-  content: {
-    padding: 20,
+  categoryBadge: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginTop: spacing.md,
   },
-  emojiContainer: {
-    alignItems: 'center',
-    marginVertical: 20,
+  categoryBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
   },
-  emoji: {
-    fontSize: 80,
+  infoWrapper: {
+    marginTop: -30,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: 120,
   },
-  infoContainer: {
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 20,
+  infoCard: {
+    borderRadius: radius.xl,
+    padding: spacing.xl,
+    ...shadows.medium,
   },
-  name: {
+  infoHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: spacing.md,
+  },
+  productName: {
     fontSize: 24,
     fontWeight: 'bold',
     marginBottom: 8,
   },
-  category: {
-    fontSize: 16,
-    fontWeight: '500',
-    marginBottom: 12,
-  },
-  price: {
-    fontSize: 20,
+  productPrice: {
+    fontSize: 22,
     fontWeight: 'bold',
-    marginBottom: 20,
   },
-  section: {
-    marginBottom: 16,
+  divider: {
+    height: 1,
+    marginVertical: spacing.lg,
   },
-  sectionTitle: {
-    fontSize: 16,
+  descriptionSection: {},
+  sectionLabel: {
+    fontSize: 14,
     fontWeight: '600',
-    marginBottom: 8,
+    marginBottom: spacing.sm,
+    opacity: 0.7,
   },
   description: {
-    fontSize: 14,
-    lineHeight: 20,
-    opacity: 0.8,
+    fontSize: 15,
+    lineHeight: 24,
   },
-  stock: {
-    fontSize: 14,
-    fontWeight: '500',
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
-  actionContainer: {
-    gap: 12,
-  },
-  addButton: {
-    padding: 16,
-    borderRadius: 8,
+  statItem: {
     alignItems: 'center',
+    flex: 1,
   },
-  addButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: 'bold',
+  statLabel: {
+    fontSize: 12,
+    marginTop: 4,
   },
-  deleteButton: {
-    padding: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-    borderWidth: 1,
+  statValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginTop: 2,
   },
-  deleteButtonText: {
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  errorText: {
-    fontSize: 16,
-    textAlign: 'center',
-    marginTop: 40,
+  actionButtons: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    marginTop: spacing.xl,
   },
   editButton: {
-    padding: 16,
-    borderRadius: 8,
+    flex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
+    justifyContent: 'center',
+    paddingVertical: spacing.md,
+    borderRadius: radius.lg,
+    borderWidth: 1.5,
+    gap: spacing.sm,
   },
   editButtonText: {
-    fontSize: 16,
-    fontWeight: '500',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  deleteButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.md,
+    borderRadius: radius.lg,
+    borderWidth: 1.5,
+    gap: spacing.sm,
+  },
+  deleteButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  floatingFooter: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.lg,
+    borderTopWidth: 1,
+    ...shadows.medium,
+  },
+  footerInfo: {
+    flex: 1,
+    marginRight: spacing.lg,
+  },
+  footerLabel: {
+    fontSize: 12,
+    marginBottom: 2,
+  },
+  footerPrice: {
+    fontSize: 18,
+    fontWeight: 'bold',
   },
 });
