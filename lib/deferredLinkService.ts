@@ -42,7 +42,7 @@ export const getDeferredLink = async (): Promise<string | null> => {
 
 /**
  * Parse deep link URL menjadi route path
- * Contoh: sweetbite2://product-detail?id=123 -> /product-detail?id=123
+ * Contoh: sweetbite://product-detail?id=123 -> /product-detail?id=123
  */
 export const parseDeepLinkUrl = (url: string): string | null => {
     try {

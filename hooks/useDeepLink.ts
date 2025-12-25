@@ -23,7 +23,7 @@ export const useDeepLink = () => {
             const path = parsed.path;
             const queryParams = parsed.queryParams as Record<string, string> || {};
 
-            // Handle product deep link: sweetbite2://product/[id] or product-detail?id=xxx
+            // Handle product deep link: sweetbite://product/[id] or product-detail?id=xxx
             if (path?.startsWith('product/')) {
                 const productId = path.replace('product/', '');
                 return { path: 'product-detail', productId, queryParams };
